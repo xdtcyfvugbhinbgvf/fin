@@ -2,9 +2,19 @@
 <html lang="ru" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Brand CRM — Finance & Sales</title>
+<meta name="description" content="CRM для учёта финансов бренда одежды">
+<meta name="theme-color" content="#0a0a0b" id="theme-meta">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Brand CRM">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" id="pwa-manifest" href="">
+<!-- PWA Icons inline (SVG as data URI) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%238b5cf6'/%3E%3Ctext x='256' y='330' font-size='260' font-weight='900' font-family='system-ui' text-anchor='middle' fill='white'%3EB%3C/text%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
   --bg-primary: #0a0a0b;
@@ -86,7 +96,7 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
 .user-role{font-size:11px;color:var(--text-muted);margin-top:1px}
 /* ─── Layout ─── */
 #app{display:none;height:100vh;flex-direction:column}
-.topbar{height:52px;background:var(--bg-card);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;position:sticky;top:0;z-index:100}
+.topbar{height:52px;background:var(--bg-card);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));gap:12px;flex-shrink:0;position:sticky;top:0;z-index:100}
 .topbar-brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;letter-spacing:-0.3px;text-decoration:none;color:var(--text-primary);margin-right:4px}
 .topbar-icon{width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
 .topbar-nav{display:flex;align-items:center;gap:2px;flex:1;overflow-x:auto;scrollbar-width:none}
@@ -105,7 +115,7 @@ html,body{height:100%;background:var(--bg-primary);color:var(--text-primary);fon
 .main-layout{display:flex;flex:1;overflow:hidden}
 .sidebar{width:200px;background:var(--bg-secondary);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
 @media(max-width:768px){.sidebar{display:none}.topbar-nav{display:flex}}
-.content{flex:1;overflow-y:auto;padding:20px;background:var(--bg-primary)}
+.content{flex:1;overflow-y:auto;padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom));background:var(--bg-primary)}
 /* ─── Section base ─── */
 .section{display:none}
 .section.active{display:block}
@@ -242,12 +252,19 @@ td{padding:11px 14px;color:var(--text-primary);vertical-align:middle}
         <div style="font-size:11px;color:var(--text-muted)">Finance & Sales</div>
       </div>
     </div>
-    <div class="auth-title">Добро пожаловать</div>
-    <div class="auth-sub">Выберите аккаунт для входа</div>
-    <div class="user-list" id="user-list"></div>
+    <div class="auth-title">Вход</div>
+    <div class="auth-sub" style="margin-bottom:20px">Введите PIN-код для доступа</div>
+    <div class="auth-error" id="auth-error">Неверный PIN-код</div>
+    <div class="form-group">
+      <label class="form-label">PIN-код</label>
+      <input type="password" class="form-input" id="pin-input" placeholder="••••" maxlength="8"
+        style="font-size:20px;letter-spacing:6px;text-align:center"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Войти</button>
     <div class="divider"></div>
     <div style="font-size:12px;color:var(--text-muted);text-align:center">
-      <span class="sync-dot"></span>Данные синхронизируются в реальном времени
+      PIN по умолчанию: <strong style="color:var(--text-secondary)">1234</strong> — смените в настройках после входа
     </div>
   </div>
 </div>
@@ -296,6 +313,9 @@ td{padding:11px 14px;color:var(--text-primary);vertical-align:middle}
       </span>
       <button class="icon-btn" onclick="toggleTheme()" title="Сменить тему">
         <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="icon-btn" onclick="openModal('settings')" title="Настройки">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
       </button>
       <div class="user-badge" id="current-user-badge" onclick="logout()">
         <div class="user-badge-avatar" id="current-user-avatar" style="background:var(--accent-light);color:var(--accent)"></div>
@@ -604,6 +624,10 @@ td{padding:11px 14px;color:var(--text-primary);vertical-align:middle}
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Экспорт CSV
             </button>
+            <button class="btn btn-danger" onclick="confirmReset()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/></svg>
+              Сбросить данные
+            </button>
           </div>
         </div>
         <div class="report-stat-grid" id="report-stats"></div>
@@ -909,6 +933,58 @@ td{padding:11px 14px;color:var(--text-primary);vertical-align:middle}
     </div>
   </div>
 
+  <!-- Settings Modal -->
+  <div class="modal hidden" id="modal-settings">
+    <div class="modal-title">
+      <span>Настройки</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div style="background:var(--bg-input);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:16px;font-size:13px;color:var(--text-secondary)">
+      ✅ Данные хранятся в облаке (Supabase) и синхронизируются между всеми устройствами в реальном времени.
+    </div>
+    <div class="form-group">
+      <label class="form-label">Текущий PIN</label>
+      <input type="password" class="form-input" id="pin-old" placeholder="Текущий PIN">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Новый PIN</label>
+      <input type="password" class="form-input" id="pin-new" placeholder="Новый PIN (мин. 4 символа)">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Повторите новый PIN</label>
+      <input type="password" class="form-input" id="pin-new2" placeholder="Повторите новый PIN">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-accent" onclick="savePin()">Сменить PIN</button>
+    </div>
+  </div>
+
+  <!-- Reset Confirm Modal -->
+  <div class="modal hidden" id="modal-reset">
+    <div class="modal-title">
+      <span style="color:var(--red)">Сброс всех данных</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div style="background:var(--red-bg);border:1px solid rgba(239,68,68,.2);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:16px;font-size:13px;color:var(--red)">
+      ⚠️ Это удалит ВСЕ данные: доходы, расходы, продажи, склад, счета. Действие необратимо.
+    </div>
+    <div class="form-group">
+      <label class="form-label">Введите PIN для подтверждения</label>
+      <input type="password" class="form-input" id="reset-pin" placeholder="PIN-код">
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="reset-confirm-cb" style="width:16px;height:16px;accent-color:var(--red)">
+        Я понимаю, что все данные будут удалены безвозвратно
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-danger" onclick="doReset()" style="background:var(--red);color:#fff;border-color:var(--red)">Удалить все данные</button>
+    </div>
+  </div>
+
 </div>
 
 <!-- Toast container -->
@@ -918,18 +994,18 @@ td{padding:11px 14px;color:var(--text-primary);vertical-align:middle}
 'use strict';
 
 // ─── CONFIG ───
-const STORAGE_KEY = 'brand_crm_v3';
-const SYNC_KEY = 'brand_crm_sync_v3';
-const USERS = [
-  {id:'owner', name:'Владелец', role:'Администратор', color:'#8b5cf6', bg:'rgba(139,92,246,0.15)', initials:'VL'},
-  {id:'manager', name:'Менеджер', role:'Менеджер продаж', color:'#10b981', bg:'rgba(16,185,129,0.15)', initials:'MG'},
-  {id:'analyst', name:'Аналитик', role:'Финансовый аналитик', color:'#3b82f6', bg:'rgba(59,130,246,0.15)', initials:'AN'}
-];
+const SUPABASE_URL = 'https://tvrazxrgoiwmiwlibtnz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_AhLAqvAXiJgwEcumXwJ9yQ_lLq7utwT';
+const DB_ROW_ID = 'main'; // single-row store
+function getPin() { return localStorage.getItem('crm_pin') || '1234'; }
+const OWNER = {id:'owner', name:'Владелец', color:'#8b5cf6', bg:'rgba(139,92,246,0.15)', initials:'VL'};
 const EXP_CATEGORIES = ['Закупка товара','DTF-печать','Вес товара / доставка','Бирки','Этикетки','Упаковка','Маркетинг','Прочие расходы'];
 const EXP_CAT_COLORS = ['#8b5cf6','#10b981','#f59e0b','#3b82f6','#ef4444','#ec4899','#06b6d4','#84cc16'];
 
 // ─── STATE ───
+let supabase = null;
 let currentUser = null;
+let realtimeChannel = null;
 let db = {
   incomes:[],
   expenses:[],
@@ -943,95 +1019,159 @@ let dashPeriod = 'day';
 let reportPeriod = 'day';
 let accFilter = 'all';
 let charts = {};
+let saveTimeout = null;
 
-// ─── STORAGE (localStorage as DB with cross-tab sync) ───
-function loadDB() {
+// ─── STORAGE: OFFLINE-FIRST + SUPABASE CLOUD SYNC ───
+// Работает ВСЕГДА: данные в localStorage доступны мгновенно.
+// Supabase подключается в фоне — если доступен, синхронизирует в облако.
+
+function loadLocalCache() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      db = Object.assign(db, parsed);
-    }
-  } catch(e) { console.warn('Load error', e); }
+    const raw = localStorage.getItem('crm_cache_v4');
+    if (raw) { db = Object.assign(db, JSON.parse(raw)); return true; }
+  } catch(e) {}
+  return false;
 }
 
-function saveDB() {
+function saveLocal() {
   try {
     db.lastUpdated = Date.now();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
-    // Broadcast to other tabs
-    localStorage.setItem(SYNC_KEY, Date.now().toString());
-  } catch(e) { showToast('Ошибка сохранения', 'error'); }
+    localStorage.setItem('crm_cache_v4', JSON.stringify(db));
+    // Broadcast to other tabs on same device
+    localStorage.setItem('crm_sync_tab', Date.now().toString());
+  } catch(e) {}
 }
 
-// Real-time sync via storage events
+// Cross-tab sync (same device, same browser)
 window.addEventListener('storage', (e) => {
-  if (e.key === SYNC_KEY) {
-    loadDB();
+  if (e.key === 'crm_sync_tab') {
+    loadLocalCache();
     refreshCurrentSection();
-    showSyncIndicator();
   }
 });
 
-function showSyncIndicator() {
-  const el = document.getElementById('sync-status');
-  if(el) {
-    el.innerHTML = '<span class="sync-dot"></span>Синхронизировано';
-    el.style.color = 'var(--green)';
-    setTimeout(() => {
-      el.innerHTML = '<span class="sync-dot"></span>Синхронизация';
-      el.style.color = '';
-    }, 1500);
+async function initSupabase() {
+  // If Supabase SDK didn't load (offline/CDN fail), skip gracefully
+  if (!window.supabase) {
+    setSyncStatus('local');
+    return;
+  }
+  try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    await syncFromCloud();
+    subscribeRealtime();
+  } catch(e) {
+    console.warn('Supabase unavailable, running offline:', e.message);
+    setSyncStatus('local');
   }
 }
 
-// ─── SEED DATA ───
-function seedData() {
-  if (db.incomes.length > 0 || db.products.length > 0) return;
-  const now = new Date();
-  function daysAgo(n) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - n);
-    return d.toISOString().split('T')[0];
-  }
-  // Products
-  const prods = [
-    {id:uid(),name:'Худи оверсайз',size:'XL',color:'Черный',qty:12,cost:4500,price:8500,createdAt:daysAgo(30)},
-    {id:uid(),name:'Худи оверсайз',size:'L',color:'Черный',qty:8,cost:4500,price:8500,createdAt:daysAgo(30)},
-    {id:uid(),name:'Футболка базовая',size:'M',color:'Белый',qty:20,cost:1200,price:2800,createdAt:daysAgo(25)},
-    {id:uid(),name:'Футболка базовая',size:'L',color:'Черный',qty:3,cost:1200,price:2800,createdAt:daysAgo(25)},
-    {id:uid(),name:'Джогеры',size:'M',color:'Серый',qty:0,cost:3500,price:6500,createdAt:daysAgo(20)},
-    {id:uid(),name:'Шорты летние',size:'L',color:'Бежевый',qty:15,cost:1800,price:3500,createdAt:daysAgo(15)},
-  ];
-  db.products = prods;
-  // Incomes
-  for(let i=30;i>=0;i--) {
-    if(Math.random()>.4) {
-      db.incomes.push({id:uid(),amount:Math.round((3000+Math.random()*25000)/100)*100,date:daysAgo(i),source:'Продажи',account:'kaspi',comment:'',createdAt:daysAgo(i),userId:'owner'});
+async function syncFromCloud() {
+  try {
+    setSyncStatus('loading');
+    const { data, error } = await supabase
+      .from('crm_data')
+      .select('payload')
+      .eq('id', DB_ROW_ID)
+      .single();
+    if (error && error.code !== 'PGRST116') throw error;
+    if (data && data.payload) {
+      // Cloud wins if it's newer
+      if (!data.payload.lastUpdated || data.payload.lastUpdated >= (db.lastUpdated || 0)) {
+        db = Object.assign(db, data.payload);
+        saveLocal();
+      } else {
+        // Local is newer — push to cloud
+        await pushToCloud();
+      }
+    } else {
+      // No cloud data yet — push local
+      await pushToCloud();
     }
+    setSyncStatus('cloud');
+  } catch(e) {
+    console.warn('Cloud sync failed, using local data:', e.message);
+    setSyncStatus('local');
   }
-  // Expenses
-  for(let i=30;i>=0;i--) {
-    if(Math.random()>.5) {
-      const cat = EXP_CATEGORIES[Math.floor(Math.random()*EXP_CATEGORIES.length)];
-      db.expenses.push({id:uid(),amount:Math.round((500+Math.random()*15000)/100)*100,date:daysAgo(i),category:cat,account:'kaspi',comment:'',createdAt:daysAgo(i),userId:'owner'});
-    }
-  }
-  // Sales
-  const saleProds = ['Худи оверсайз черный XL','Футболка базовая белая M','Шорты летние L','Худи оверсайз черный L'];
-  for(let i=25;i>=0;i--) {
-    if(Math.random()>.45) {
-      const nm = saleProds[Math.floor(Math.random()*saleProds.length)];
-      const qty = Math.floor(Math.random()*3)+1;
-      const price = [8500,2800,3500][Math.floor(Math.random()*3)];
-      const cost = Math.round(price * (0.35+Math.random()*0.2));
-      db.sales.push({id:uid(),name:nm,qty,price,cost,date:daysAgo(i),account:'kaspi',createdAt:daysAgo(i),userId:'owner'});
-    }
-  }
-  // Accounts
-  db.accounts = {kaspi: 245000, cash: 38000};
-  saveDB();
 }
+
+async function pushToCloud() {
+  if (!supabase) return;
+  try {
+    const { error } = await supabase
+      .from('crm_data')
+      .upsert({ id: DB_ROW_ID, payload: db, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    setSyncStatus('cloud');
+  } catch(e) {
+    console.warn('Push failed:', e.message);
+    setSyncStatus('local');
+  }
+}
+
+async function saveDB() {
+  saveLocal(); // Always save locally first — instant, never fails
+  // Then sync to cloud in background (non-blocking)
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(async () => {
+    if (!supabase) return;
+    try {
+      setSyncStatus('saving');
+      const { error } = await supabase
+        .from('crm_data')
+        .upsert({ id: DB_ROW_ID, payload: db, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      setSyncStatus('cloud');
+    } catch(e) {
+      setSyncStatus('local');
+      // Don't show error toast — data is safe locally, cloud just unavailable
+    }
+  }, 400);
+}
+
+function subscribeRealtime() {
+  if (!supabase) return;
+  if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+  realtimeChannel = supabase
+    .channel('crm_changes')
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'crm_data',
+      filter: `id=eq.${DB_ROW_ID}`
+    }, (payload) => {
+      if (payload.new && payload.new.payload) {
+        const incoming = payload.new.payload;
+        if (incoming.lastUpdated && incoming.lastUpdated > db.lastUpdated) {
+          db = Object.assign(db, incoming);
+          saveLocal();
+          refreshCurrentSection();
+          setSyncStatus('synced');
+          setTimeout(() => setSyncStatus('cloud'), 2000);
+        }
+      }
+    })
+    .subscribe();
+}
+
+function setSyncStatus(state) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  const states = {
+    loading: ['<span class="sync-dot" style="background:var(--amber)"></span>Подключение...', 'var(--amber)'],
+    saving:  ['<span class="sync-dot" style="background:var(--amber)"></span>Сохранение...', 'var(--amber)'],
+    cloud:   ['<span class="sync-dot"></span>Облако ✓', 'var(--green)'],
+    synced:  ['<span class="sync-dot"></span>Синхронизировано', 'var(--green)'],
+    local:   ['<span class="sync-dot" style="background:var(--amber)"></span>Локально', 'var(--amber)'],
+    error:   ['<span class="sync-dot" style="background:var(--red)"></span>Нет связи', 'var(--red)'],
+  };
+  const [html, color] = states[state] || states.cloud;
+  el.innerHTML = html;
+  el.style.color = color;
+}
+
+function showSyncIndicator() {
+  setSyncStatus('synced');
+}
+
 
 // ─── UTILS ───
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
@@ -1070,46 +1210,47 @@ function calcSaleMetrics(s) {
 
 // ─── AUTH ───
 function initAuth() {
-  const ul = document.getElementById('user-list');
-  ul.innerHTML = USERS.map(u => `
-    <div class="user-chip" onclick="login('${u.id}')">
-      <div class="user-avatar" style="background:${u.bg};color:${u.color}">${u.initials}</div>
-      <div>
-        <div class="user-name">${u.name}</div>
-        <div class="user-role">${u.role}</div>
-      </div>
-    </div>
-  `).join('');
-  const saved = sessionStorage.getItem('crm_user');
-  if(saved) login(saved);
+  const saved = sessionStorage.getItem('crm_session');
+  if(saved === 'ok') enterApp();
+  else document.getElementById('pin-input').focus();
 }
 
-function login(userId) {
-  const user = USERS.find(u=>u.id===userId);
-  if(!user) return;
-  currentUser = user;
-  sessionStorage.setItem('crm_user', userId);
+function doLogin() {
+  const val = document.getElementById('pin-input').value;
+  const err = document.getElementById('auth-error');
+  if(val === getPin()) {
+    err.style.display = 'none';
+    sessionStorage.setItem('crm_session', 'ok');
+    enterApp();
+  } else {
+    err.style.display = 'block';
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-input').focus();
+  }
+}
+
+function enterApp() {
+  currentUser = OWNER;
   document.getElementById('auth-screen').style.display = 'none';
   const app = document.getElementById('app');
   app.style.display = 'flex';
   app.style.flexDirection = 'column';
-  // Set user badge
-  document.getElementById('current-user-name').textContent = user.name;
+  document.getElementById('current-user-name').textContent = OWNER.name;
   const av = document.getElementById('current-user-avatar');
-  av.textContent = user.initials;
-  av.style.background = user.bg;
-  av.style.color = user.color;
-  // Init app
+  av.textContent = OWNER.initials;
+  av.style.background = OWNER.bg;
+  av.style.color = OWNER.color;
   updateGreeting();
   renderDashboard();
 }
 
 function logout() {
-  if(!confirm('Выйти из аккаунта?')) return;
-  sessionStorage.removeItem('crm_user');
+  if(!confirm('Выйти?')) return;
+  sessionStorage.removeItem('crm_session');
   currentUser = null;
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
+  document.getElementById('pin-input').value = '';
 }
 
 // ─── NAV ───
@@ -1855,6 +1996,41 @@ function deleteItem(collection, id) {
   showToast('Удалено', 'info');
 }
 
+// ─── SETTINGS & RESET ───
+function savePin() {
+  const oldPin = document.getElementById('pin-old').value;
+  const newPin = document.getElementById('pin-new').value;
+  const newPin2 = document.getElementById('pin-new2').value;
+  if(oldPin !== getPin()) { showToast('Неверный текущий PIN', 'error'); return; }
+  if(newPin.length < 4) { showToast('PIN должен быть минимум 4 символа', 'error'); return; }
+  if(newPin !== newPin2) { showToast('PIN-коды не совпадают', 'error'); return; }
+  localStorage.setItem('crm_pin', newPin);
+  closeModal();
+  showToast('PIN успешно изменён', 'success');
+  document.getElementById('pin-old').value='';
+  document.getElementById('pin-new').value='';
+  document.getElementById('pin-new2').value='';
+}
+
+function confirmReset() {
+  openModal('reset');
+}
+
+function doReset() {
+  const pin = document.getElementById('reset-pin').value;
+  const cb = document.getElementById('reset-confirm-cb').checked;
+  if(pin !== getPin()) { showToast('Неверный PIN', 'error'); return; }
+  if(!cb) { showToast('Подтвердите удаление', 'error'); return; }
+  // Clear all data
+  db = {incomes:[],expenses:[],sales:[],products:[],accounts:{kaspi:0,cash:0},accOps:[],lastUpdated:Date.now()};
+  localStorage.removeItem('crm_cache_v4');
+  saveLocal();
+  if (supabase) pushToCloud();
+  closeModal();
+  renderSection(currentSection);
+  showToast('Все данные удалены', 'info');
+}
+
 // ─── TOAST ───
 function showToast(msg, type='info') {
   const container = document.getElementById('toast-container');
@@ -1867,21 +2043,158 @@ function showToast(msg, type='info') {
 }
 
 // ─── INIT ───
-function init() {
-  loadDB();
-  seedData();
+async function init() {
+  // 1. Load local cache immediately — app works instantly, no waiting
+  loadLocalCache();
+  // 2. Show auth screen right away
   initAuth();
+  // 3. Connect Supabase in background — doesn't block anything
+  initSupabase().then(() => {
+    if (currentUser) renderSection(currentSection);
+  });
 }
 
-// Auto-save: also re-sync every 10s in case of missed events
-setInterval(()=>{
-  if(currentUser) {
-    loadDB();
+// Periodic cloud re-sync every 60s as fallback (only if cloud connected)
+setInterval(async () => {
+  if (currentUser && supabase) {
+    await syncFromCloud();
     renderSection(currentSection);
   }
-}, 10000);
+}, 60000);
 
 document.addEventListener('DOMContentLoaded', init);
+
+// ─── PWA: MANIFEST + SERVICE WORKER ───
+function initPWA() {
+  // Inject manifest dynamically as a blob
+  const manifest = {
+    name: 'Brand CRM',
+    short_name: 'Brand CRM',
+    description: 'CRM для учёта финансов бренда одежды',
+    start_url: location.href,
+    display: 'standalone',
+    orientation: 'any',
+    background_color: '#0a0a0b',
+    theme_color: '#8b5cf6',
+    categories: ['finance', 'business'],
+    icons: [
+      {
+        src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%238b5cf6'/%3E%3Ctext x='256' y='330' font-size='260' font-weight='900' font-family='system-ui' text-anchor='middle' fill='white'%3EB%3C/text%3E%3C/svg%3E",
+        sizes: '512x512',
+        type: 'image/svg+xml',
+        purpose: 'any maskable'
+      },
+      {
+        src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%238b5cf6'/%3E%3Ctext x='96' y='126' font-size='100' font-weight='900' font-family='system-ui' text-anchor='middle' fill='white'%3EB%3C/text%3E%3C/svg%3E",
+        sizes: '192x192',
+        type: 'image/svg+xml',
+        purpose: 'any maskable'
+      }
+    ]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  document.getElementById('pwa-manifest').href = url;
+
+  // Register Service Worker (inline via blob)
+  if ('serviceWorker' in navigator) {
+    const swCode = `
+const CACHE = 'brand-crm-v1';
+const SHELL = [location.href || '/'];
+
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE).then(cache => {
+      // Cache the app shell (this HTML file)
+      return cache.addAll(SHELL).catch(() => {});
+    })
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
+  // For CDN resources and Supabase — always try network first, fall back to cache
+  if (url.origin !== location.origin) {
+    e.respondWith(
+      fetch(e.request)
+        .then(res => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE).then(c => c.put(e.request, clone));
+          }
+          return res;
+        })
+        .catch(() => caches.match(e.request))
+    );
+    return;
+  }
+  // For the app itself — cache first (works offline)
+  e.respondWith(
+    caches.match(e.request).then(cached => cached || fetch(e.request))
+  );
+});
+`;
+    const swBlob = new Blob([swCode], {type: 'application/javascript'});
+    const swUrl = URL.createObjectURL(swBlob);
+    navigator.serviceWorker.register(swUrl, {scope: './'})
+      .then(reg => {
+        console.log('PWA Service Worker registered');
+        // Check for install prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+          e.preventDefault();
+          window._pwaPrompt = e;
+          showInstallBanner();
+        });
+      })
+      .catch(e => console.warn('SW registration skipped:', e.message));
+  }
+}
+
+function showInstallBanner() {
+  // Show install button in topbar if not already installed
+  if (window.matchMedia('(display-mode: standalone)').matches) return;
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-sm';
+  btn.style.cssText = 'background:var(--accent-light);color:var(--accent);border-color:rgba(139,92,246,.3);font-size:11px';
+  btn.innerHTML = '📲 Установить приложение';
+  btn.onclick = async () => {
+    if (window._pwaPrompt) {
+      window._pwaPrompt.prompt();
+      const { outcome } = await window._pwaPrompt.userChoice;
+      if (outcome === 'accepted') {
+        btn.remove();
+        showToast('Приложение установлено!', 'success');
+      }
+      window._pwaPrompt = null;
+    }
+  };
+  const right = document.querySelector('.topbar-right');
+  if (right) right.prepend(btn);
+}
+
+// Theme color syncs with dark/light toggle
+const origToggleTheme = toggleTheme;
+window.toggleTheme = function() {
+  origToggleTheme();
+  const meta = document.getElementById('theme-meta');
+  if (meta) {
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    meta.content = dark ? '#0a0a0b' : '#f8f8fc';
+  }
+};
+
+// Init PWA after DOM ready
+window.addEventListener('load', initPWA);
 </script>
 </body>
 </html>
