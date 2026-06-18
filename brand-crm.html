@@ -1,0 +1,2053 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brand CRM — Финансовый учёт</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0f0f11;
+  --bg2: #17171a;
+  --bg3: #1e1e22;
+  --bg4: #26262c;
+  --border: #2e2e36;
+  --border2: #3a3a44;
+  --text: #f0f0f4;
+  --text2: #9898a8;
+  --text3: #6060708;
+  --accent: #7c6af7;
+  --accent2: #9d8ff9;
+  --accent-bg: rgba(124,106,247,0.12);
+  --green: #34d399;
+  --green-bg: rgba(52,211,153,0.1);
+  --red: #f87171;
+  --red-bg: rgba(248,113,113,0.1);
+  --amber: #fbbf24;
+  --amber-bg: rgba(251,191,36,0.1);
+  --blue: #60a5fa;
+  --blue-bg: rgba(96,165,250,0.1);
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+[data-theme="light"] {
+  --bg: #f8f8fc;
+  --bg2: #ffffff;
+  --bg3: #f2f2f7;
+  --bg4: #e8e8f0;
+  --border: #e0e0ec;
+  --border2: #ccccdd;
+  --text: #1a1a2e;
+  --text2: #606078;
+  --accent: #5b4de8;
+  --accent2: #7c6af7;
+  --accent-bg: rgba(91,77,232,0.08);
+  --green: #059669;
+  --green-bg: rgba(5,150,105,0.08);
+  --red: #dc2626;
+  --red-bg: rgba(220,38,38,0.08);
+  --amber: #d97706;
+  --amber-bg: rgba(217,119,6,0.08);
+  --blue: #2563eb;
+  --blue-bg: rgba(37,99,235,0.08);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.app { display: flex; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  width: 220px;
+  min-height: 100vh;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0;
+  z-index: 100;
+  transition: transform 0.25s;
+}
+.sidebar-logo {
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.logo-mark {
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-icon {
+  width: 32px; height: 32px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; color: #fff;
+}
+.logo-text { font-size: 15px; font-weight: 600; color: var(--text); }
+.logo-sub { font-size: 11px; color: var(--text2); margin-top: 1px; }
+
+.sidebar-nav { padding: 12px 10px; flex: 1; }
+.nav-section { margin-bottom: 20px; }
+.nav-label {
+  font-size: 10px; font-weight: 600;
+  color: var(--text2); letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0 8px 6px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 13.5px;
+  transition: all 0.15s;
+  user-select: none;
+}
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: var(--accent-bg); color: var(--accent2); }
+.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+.sidebar-bottom {
+  padding: 12px 10px;
+  border-top: 1px solid var(--border);
+}
+.user-pill {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.user-pill:hover { background: var(--bg3); }
+.avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: var(--accent2);
+  flex-shrink: 0;
+}
+.user-info { flex: 1; min-width: 0; }
+.user-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-role { font-size: 11px; color: var(--text2); }
+
+/* Main */
+.main { margin-left: 220px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+.topbar {
+  height: 56px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 24px;
+  gap: 12px;
+  position: sticky; top: 0; z-index: 50;
+}
+.topbar-title { font-size: 16px; font-weight: 600; flex: 1; }
+.topbar-actions { display: flex; gap: 8px; align-items: center; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border2);
+  background: var(--bg3);
+  color: var(--text);
+  font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--bg4); border-color: var(--border2); }
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--accent2); border-color: var(--accent2); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-icon { padding: 7px; }
+.btn-danger { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+.btn-success { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+
+.content { padding: 24px; flex: 1; max-width: 1400px; }
+
+/* Cards */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.card-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.card-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+/* Stat cards */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  transition: border-color 0.15s;
+}
+.stat-card:hover { border-color: var(--border2); }
+.stat-label { font-size: 11px; color: var(--text2); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+.stat-value { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+.stat-sub { font-size: 11px; color: var(--text2); margin-top: 4px; }
+.stat-card.green .stat-value { color: var(--green); }
+.stat-card.red .stat-value { color: var(--red); }
+.stat-card.amber .stat-value { color: var(--amber); }
+.stat-card.accent .stat-value { color: var(--accent2); }
+
+/* Table */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  text-align: left; padding: 10px 12px;
+  font-size: 11px; font-weight: 600;
+  color: var(--text2); letter-spacing: 0.05em; text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--bg3); }
+
+/* Badge */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 20px;
+  font-size: 11px; font-weight: 500;
+}
+.badge-green { background: var(--green-bg); color: var(--green); }
+.badge-red { background: var(--red-bg); color: var(--red); }
+.badge-amber { background: var(--amber-bg); color: var(--amber); }
+.badge-blue { background: var(--blue-bg); color: var(--blue); }
+.badge-accent { background: var(--accent-bg); color: var(--accent2); }
+
+/* Forms */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.full { grid-column: 1 / -1; }
+label { font-size: 12px; font-weight: 500; color: var(--text2); }
+input, select, textarea {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(124,106,247,0.12);
+}
+textarea { resize: vertical; min-height: 70px; }
+select option { background: var(--bg3); color: var(--text); }
+
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.65);
+  z-index: 200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+.modal-title {
+  font-size: 16px; font-weight: 600;
+  margin-bottom: 20px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-close {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--bg3); border: none;
+  color: var(--text2); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+.modal-close:hover { background: var(--bg4); }
+
+/* Pages */
+.page { display: none; }
+.page.active { display: block; }
+
+/* Login */
+.login-wrap {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  padding: 20px;
+}
+.login-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  width: 100%; max-width: 380px;
+}
+.login-logo {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.login-icon {
+  width: 48px; height: 48px;
+  background: var(--accent);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700; color: #fff;
+  margin: 0 auto 12px;
+}
+.login-title { font-size: 20px; font-weight: 700; }
+.login-sub { font-size: 13px; color: var(--text2); margin-top: 4px; }
+.login-form { display: flex; flex-direction: column; gap: 14px; }
+.login-btn {
+  margin-top: 4px;
+  padding: 10px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #fff; font-weight: 600;
+  cursor: pointer; width: 100%;
+  transition: background 0.15s;
+}
+.login-btn:hover { background: var(--accent2); }
+.login-error {
+  background: var(--red-bg);
+  border: 1px solid var(--red);
+  color: var(--red);
+  border-radius: 8px; padding: 8px 12px;
+  font-size: 12px; display: none;
+}
+
+/* Charts section */
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+.chart-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 20px;
+}
+.chart-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 14px; color: var(--text2); }
+canvas { width: 100% !important; max-height: 200px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; background: var(--bg3); border-radius: 10px; padding: 3px; width: fit-content; }
+.tab {
+  padding: 6px 14px; border-radius: 8px; cursor: pointer;
+  font-size: 13px; font-weight: 500; color: var(--text2);
+  transition: all 0.15s;
+}
+.tab.active { background: var(--bg2); color: var(--text); box-shadow: var(--shadow); }
+
+/* Divider */
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+/* Transfer card */
+.account-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+}
+.account-name { font-size: 13px; font-weight: 500; color: var(--text2); }
+.account-balance { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+
+/* Responsive */
+.mobile-menu-btn {
+  display: none;
+  width: 36px; height: 36px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer;
+  align-items: center; justify-content: center;
+  color: var(--text);
+}
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .main { margin-left: 0; }
+  .mobile-menu-btn { display: flex; }
+  .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .content { padding: 16px; }
+}
+.overlay-close {
+  display: none;
+  position: fixed; inset: 0;
+  z-index: 99;
+  background: rgba(0,0,0,0.4);
+}
+@media (max-width: 768px) {
+  .overlay-close.show { display: block; }
+}
+
+/* Realtime dot */
+.live-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green);
+  display: inline-block;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Loading */
+.loading { display: flex; align-items: center; gap: 8px; color: var(--text2); font-size: 13px; padding: 40px 0; justify-content: center; }
+
+/* Theme toggle */
+.theme-btn {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  color: var(--text);
+  transition: background 0.15s;
+}
+.theme-btn:hover { background: var(--bg4); }
+
+.text-green { color: var(--green); }
+.text-red { color: var(--red); }
+.text-amber { color: var(--amber); }
+.text-muted { color: var(--text2); }
+.mt-4 { margin-top: 16px; }
+.mt-6 { margin-top: 24px; }
+.mb-4 { margin-bottom: 16px; }
+.flex { display: flex; }
+.items-center { align-items: center; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.justify-between { justify-content: space-between; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.fw-600 { font-weight: 600; }
+.fs-13 { font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN PAGE -->
+<div id="loginPage" class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-icon">B</div>
+      <div class="login-title">Brand CRM</div>
+      <div class="login-sub">Финансовый учёт бренда одежды</div>
+    </div>
+    <div class="login-form">
+      <div id="loginError" class="login-error"></div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="your@email.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>Пароль</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="login-btn" onclick="doLogin()">Войти</button>
+      <div style="text-align:center; font-size:12px; color:var(--text2); margin-top:8px;">
+        Нет аккаунта? <span style="color:var(--accent2); cursor:pointer;" onclick="showRegister()">Зарегистрироваться</span>
+      </div>
+    </div>
+    <!-- Register form (hidden by default) -->
+    <div id="registerForm" style="display:none; margin-top:16px; border-top:1px solid var(--border); padding-top:16px;">
+      <div style="font-size:14px; font-weight:600; margin-bottom:12px;">Создать аккаунт</div>
+      <div class="login-form">
+        <div id="regError" class="login-error"></div>
+        <div class="form-group">
+          <label>Имя</label>
+          <input type="text" id="regName" placeholder="Ваше имя">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="regEmail" placeholder="your@email.com">
+        </div>
+        <div class="form-group">
+          <label>Пароль</label>
+          <input type="password" id="regPassword" placeholder="Минимум 6 символов">
+        </div>
+        <button class="login-btn" onclick="doRegister()">Создать аккаунт</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp" style="display:none;">
+<div class="app">
+  <!-- Overlay for mobile -->
+  <div class="overlay-close" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <div class="logo-icon">B</div>
+        <div>
+          <div class="logo-text">Brand CRM</div>
+          <div class="logo-sub">
+            <span class="live-dot"></span> Синхронизация
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-label">Главное</div>
+        <div class="nav-item active" onclick="navigate('dashboard')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/><rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/></svg>
+          Дашборд
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Финансы</div>
+        <div class="nav-item" onclick="navigate('income')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v6M5.5 7l2.5-2 2.5 2"/></svg>
+          Доходы
+        </div>
+        <div class="nav-item" onclick="navigate('expenses')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 11V5M5.5 9l2.5 2 2.5-2"/></svg>
+          Расходы
+        </div>
+        <div class="nav-item" onclick="navigate('accounts')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="4" width="13" height="9" rx="1.5"/><path d="M1.5 7h13"/><path d="M4.5 10.5h2"/></svg>
+          Счета
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Бизнес</div>
+        <div class="nav-item" onclick="navigate('sales')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h1.5l2 7h6.5l1.5-5H5"/><circle cx="6.5" cy="13" r="1"/><circle cx="11.5" cy="13" r="1"/></svg>
+          Продажи
+        </div>
+        <div class="nav-item" onclick="navigate('warehouse')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6l6-4 6 4v7H2V6z"/><path d="M6 13v-4h4v4"/></svg>
+          Склад
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Аналитика</div>
+        <div class="nav-item" onclick="navigate('reports')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12l4-5 3 3 2-4 3 3"/><path d="M2 2v12h12"/></svg>
+          Отчёты
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="nav-item" onclick="navigate('settings')" style="margin-bottom:4px;">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.2 3.2l1 1M11.8 11.8l1 1M3.2 12.8l1-1M11.8 4.2l1-1"/></svg>
+        Настройки
+      </div>
+      <div class="user-pill" id="userPill">
+        <div class="avatar" id="userAvatar">U</div>
+        <div class="user-info">
+          <div class="user-name" id="userName">Загрузка...</div>
+          <div class="user-role" id="userRoleLabel">Пользователь</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <div class="main">
+    <header class="topbar">
+      <button class="mobile-menu-btn" onclick="toggleSidebar()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
+      </button>
+      <div class="topbar-title" id="pageTitle">Дашборд</div>
+      <div class="topbar-actions">
+        <button class="theme-btn" onclick="toggleTheme()" title="Тема">
+          <span id="themeIcon">☀️</span>
+        </button>
+        <button class="btn btn-sm" onclick="doLogout()">Выйти</button>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div id="page-dashboard" class="page active">
+        <div class="stats-grid" id="dashboardStats">
+          <div class="loading">Загрузка данных...</div>
+        </div>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <h4>Доходы и расходы (30 дней)</h4>
+            <canvas id="chartIncomeExpense"></canvas>
+          </div>
+          <div class="chart-card">
+            <h4>Прибыль по дням</h4>
+            <canvas id="chartProfit"></canvas>
+          </div>
+          <div class="chart-card">
+            <h4>Расходы по категориям</h4>
+            <canvas id="chartExpenseCat"></canvas>
+          </div>
+          <div class="chart-card">
+            <h4>Продажи (кол-во)</h4>
+            <canvas id="chartSalesCount"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- INCOME -->
+      <div id="page-income" class="page">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <div class="fw-600" style="font-size:16px">Доходы</div>
+            <div class="text-muted fs-13">Все поступления</div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('incomeModal')">+ Добавить доход</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Сумма</th>
+                  <th>Источник</th>
+                  <th>Комментарий</th>
+                  <th>Добавил</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="incomeTable"><tr><td colspan="6" class="loading" style="padding:24px; text-align:center; color:var(--text2);">Загрузка...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXPENSES -->
+      <div id="page-expenses" class="page">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <div class="fw-600" style="font-size:16px">Расходы</div>
+            <div class="text-muted fs-13">Все затраты бренда</div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('expenseModal')">+ Добавить расход</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Сумма</th>
+                  <th>Категория</th>
+                  <th>Комментарий</th>
+                  <th>Добавил</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="expensesTable"><tr><td colspan="6" style="padding:24px; text-align:center; color:var(--text2);">Загрузка...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACCOUNTS -->
+      <div id="page-accounts" class="page">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <div class="fw-600" style="font-size:16px">Счета</div>
+            <div class="text-muted fs-13">Kaspi и Наличные</div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('transferModal')">⇄ Перевод</button>
+        </div>
+        <div class="grid-2" id="accountCards">
+          <div class="account-card">
+            <div class="account-name">Kaspi</div>
+            <div class="account-balance text-green" id="kaspiBalance">— ₸</div>
+          </div>
+          <div class="account-card">
+            <div class="account-name">Наличные</div>
+            <div class="account-balance text-amber" id="cashBalance">— ₸</div>
+          </div>
+        </div>
+        <div class="card mt-4">
+          <div class="card-header">
+            <div class="card-title">История операций</div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Тип</th>
+                  <th>Сумма</th>
+                  <th>Откуда</th>
+                  <th>Куда</th>
+                  <th>Комментарий</th>
+                </tr>
+              </thead>
+              <tbody id="accountHistory"><tr><td colspan="6" style="padding:24px; text-align:center; color:var(--text2);">Загрузка...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- SALES -->
+      <div id="page-sales" class="page">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <div class="fw-600" style="font-size:16px">Продажи</div>
+            <div class="text-muted fs-13">Все реализации</div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('saleModal')">+ Добавить продажу</button>
+        </div>
+        <div class="stats-grid" id="salesStats" style="margin-bottom:16px;">
+          <div class="stat-card">
+            <div class="stat-label">Выручка (всего)</div>
+            <div class="stat-value" id="totalRevenue">—</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Чистая прибыль</div>
+            <div class="stat-value" id="totalNetProfit">—</div>
+          </div>
+          <div class="stat-card accent">
+            <div class="stat-label">Маржа средняя</div>
+            <div class="stat-value" id="avgMargin">—</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Товар</th>
+                  <th>Кол-во</th>
+                  <th>Цена</th>
+                  <th>Себест.</th>
+                  <th>Выручка</th>
+                  <th>Прибыль</th>
+                  <th>Маржа</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="salesTable"><tr><td colspan="9" style="padding:24px; text-align:center; color:var(--text2);">Загрузка...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- WAREHOUSE -->
+      <div id="page-warehouse" class="page">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <div class="fw-600" style="font-size:16px">Склад</div>
+            <div class="text-muted fs-13">Остатки товаров</div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('warehouseModal')">+ Добавить товар</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Товар</th>
+                  <th>Размер</th>
+                  <th>Цвет</th>
+                  <th>В наличии</th>
+                  <th>Себест.</th>
+                  <th>Цена прод.</th>
+                  <th>Стоимость склада</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="warehouseTable"><tr><td colspan="8" style="padding:24px; text-align:center; color:var(--text2);">Загрузка...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- REPORTS -->
+      <div id="page-reports" class="page">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <div class="fw-600" style="font-size:16px">Отчёты</div>
+            <div class="text-muted fs-13">Финансовый анализ</div>
+          </div>
+          <div class="tabs">
+            <div class="tab active" onclick="setReportPeriod('day',this)">День</div>
+            <div class="tab" onclick="setReportPeriod('week',this)">Неделя</div>
+            <div class="tab" onclick="setReportPeriod('month',this)">Месяц</div>
+          </div>
+        </div>
+        <div class="stats-grid" id="reportStats">
+          <div class="loading">Выбери период</div>
+        </div>
+        <div class="charts-grid mt-6" id="reportCharts">
+          <div class="chart-card">
+            <h4>Доходы vs Расходы</h4>
+            <canvas id="chartReportIE"></canvas>
+          </div>
+          <div class="chart-card">
+            <h4>Динамика прибыли</h4>
+            <canvas id="chartReportProfit"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div id="page-settings" class="page">
+        <div class="fw-600" style="font-size:16px; margin-bottom:20px">Настройки</div>
+        <div class="card" style="max-width:480px">
+          <div class="card-header"><div class="card-title">Профиль</div></div>
+          <div class="form-grid" style="gap:14px">
+            <div class="form-group">
+              <label>Имя</label>
+              <input type="text" id="settingsName" placeholder="Ваше имя">
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" id="settingsEmail" disabled style="opacity:0.6">
+            </div>
+            <div class="form-group">
+              <label>Роль</label>
+              <select id="settingsRole">
+                <option value="admin">Администратор</option>
+                <option value="manager">Менеджер</option>
+                <option value="viewer">Просмотр</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary mt-4" onclick="saveSettings()">Сохранить</button>
+        </div>
+        <div class="card mt-4" style="max-width:480px">
+          <div class="card-header"><div class="card-title">База данных</div></div>
+          <div style="font-size:13px; color:var(--text2); margin-bottom:12px;">
+            Данные хранятся в Supabase (PostgreSQL). Синхронизация в реальном времени активна.
+          </div>
+          <button class="btn btn-sm" onclick="exportData()">📥 Экспорт JSON</button>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+</div><!-- /mainApp -->
+
+<!-- MODALS -->
+
+<!-- Income Modal -->
+<div class="modal-overlay" id="incomeModal">
+  <div class="modal">
+    <div class="modal-title">
+      Новый доход
+      <button class="modal-close" onclick="closeModal('incomeModal')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Сумма (₸)</label>
+        <input type="number" id="incomeAmount" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Дата</label>
+        <input type="date" id="incomeDate">
+      </div>
+      <div class="form-group">
+        <label>Источник дохода</label>
+        <select id="incomeSource">
+          <option>Продажи</option>
+          <option>Kaspi Shop</option>
+          <option>Instagram</option>
+          <option>WhatsApp</option>
+          <option>Оффлайн</option>
+          <option>Другое</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Счёт</label>
+        <select id="incomeAccount">
+          <option value="kaspi">Kaspi</option>
+          <option value="cash">Наличные</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Комментарий</label>
+        <textarea id="incomeComment" placeholder="Необязательно..."></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button class="btn btn-primary" onclick="saveIncome()">Сохранить</button>
+      <button class="btn" onclick="closeModal('incomeModal')">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- Expense Modal -->
+<div class="modal-overlay" id="expenseModal">
+  <div class="modal">
+    <div class="modal-title">
+      Новый расход
+      <button class="modal-close" onclick="closeModal('expenseModal')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Сумма (₸)</label>
+        <input type="number" id="expenseAmount" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Дата</label>
+        <input type="date" id="expenseDate">
+      </div>
+      <div class="form-group">
+        <label>Категория</label>
+        <select id="expenseCategory">
+          <option>Закупка товара</option>
+          <option>DTF-печать</option>
+          <option>Вес товара / доставка</option>
+          <option>Бирки</option>
+          <option>Этикетки</option>
+          <option>Упаковка</option>
+          <option>Маркетинг</option>
+          <option>Прочие расходы</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Счёт</label>
+        <select id="expenseAccount">
+          <option value="kaspi">Kaspi</option>
+          <option value="cash">Наличные</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Комментарий</label>
+        <textarea id="expenseComment" placeholder="Необязательно..."></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button class="btn btn-primary" onclick="saveExpense()">Сохранить</button>
+      <button class="btn" onclick="closeModal('expenseModal')">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- Transfer Modal -->
+<div class="modal-overlay" id="transferModal">
+  <div class="modal">
+    <div class="modal-title">
+      Перевод между счетами
+      <button class="modal-close" onclick="closeModal('transferModal')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Откуда</label>
+        <select id="transferFrom">
+          <option value="kaspi">Kaspi</option>
+          <option value="cash">Наличные</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Куда</label>
+        <select id="transferTo">
+          <option value="cash">Наличные</option>
+          <option value="kaspi">Kaspi</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Сумма (₸)</label>
+        <input type="number" id="transferAmount" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Дата</label>
+        <input type="date" id="transferDate">
+      </div>
+      <div class="form-group full">
+        <label>Комментарий</label>
+        <textarea id="transferComment" placeholder="Необязательно..."></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button class="btn btn-primary" onclick="saveTransfer()">Выполнить перевод</button>
+      <button class="btn" onclick="closeModal('transferModal')">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sale Modal -->
+<div class="modal-overlay" id="saleModal">
+  <div class="modal">
+    <div class="modal-title">
+      Новая продажа
+      <button class="modal-close" onclick="closeModal('saleModal')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Товар со склада</label>
+        <select id="saleWarehouseItem" onchange="fillSaleFromWarehouse(this.value)">
+          <option value="">— Выбрать со склада —</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Название товара</label>
+        <input type="text" id="saleName" placeholder="Название">
+      </div>
+      <div class="form-group">
+        <label>Количество</label>
+        <input type="number" id="saleQty" placeholder="1" min="1" value="1" oninput="updateSaleCalc()">
+      </div>
+      <div class="form-group">
+        <label>Цена продажи (₸)</label>
+        <input type="number" id="salePrice" placeholder="0" oninput="updateSaleCalc()">
+      </div>
+      <div class="form-group">
+        <label>Себестоимость (₸)</label>
+        <input type="number" id="saleCost" placeholder="0" oninput="updateSaleCalc()">
+      </div>
+      <div class="form-group">
+        <label>Дата</label>
+        <input type="date" id="saleDate">
+      </div>
+      <div class="form-group">
+        <label>Счёт</label>
+        <select id="saleAccount">
+          <option value="kaspi">Kaspi</option>
+          <option value="cash">Наличные</option>
+        </select>
+      </div>
+    </div>
+    <div style="background:var(--bg3); border-radius:8px; padding:12px; margin:12px 0; font-size:13px;" id="saleCalcPreview">
+      <div class="flex justify-between"><span class="text-muted">Выручка:</span> <span id="calcRevenue">—</span></div>
+      <div class="flex justify-between mt-4" style="margin-top:6px;"><span class="text-muted">Прибыль:</span> <span id="calcProfit" class="text-green">—</span></div>
+      <div class="flex justify-between" style="margin-top:6px;"><span class="text-muted">Маржа:</span> <span id="calcMargin" class="text-accent2">—</span></div>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary" onclick="saveSale()">Сохранить</button>
+      <button class="btn" onclick="closeModal('saleModal')">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- Warehouse Modal -->
+<div class="modal-overlay" id="warehouseModal">
+  <div class="modal">
+    <div class="modal-title">
+      Добавить товар
+      <button class="modal-close" onclick="closeModal('warehouseModal')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Название товара</label>
+        <input type="text" id="whName" placeholder="Например: Футболка оверсайз">
+      </div>
+      <div class="form-group">
+        <label>Размер</label>
+        <select id="whSize">
+          <option>XS</option><option>S</option><option>M</option>
+          <option>L</option><option>XL</option><option>XXL</option><option>Без размера</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Цвет</label>
+        <input type="text" id="whColor" placeholder="Чёрный">
+      </div>
+      <div class="form-group">
+        <label>Количество</label>
+        <input type="number" id="whQty" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>Себестоимость (₸)</label>
+        <input type="number" id="whCost" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Цена продажи (₸)</label>
+        <input type="number" id="whPrice" placeholder="0">
+      </div>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button class="btn btn-primary" onclick="saveWarehouse()">Сохранить</button>
+      <button class="btn" onclick="closeModal('warehouseModal')">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ================================================================
+//  SUPABASE SETUP
+// ================================================================
+const SUPABASE_URL = 'https://xyzcompany.supabase.co';
+const SUPABASE_KEY = 'your-anon-key-here';
+
+let supabase = null;
+let currentUser = null;
+let userProfile = null;
+let realtimeChannels = [];
+let chartInstances = {};
+let currentPeriod = 'month';
+let reportPeriod = 'day';
+
+// Demo mode — works without real Supabase
+let demoMode = true;
+let demoData = {
+  incomes: [],
+  expenses: [],
+  accounts: [
+    { id: 'kaspi', name: 'Kaspi', balance: 0 },
+    { id: 'cash', name: 'Наличные', balance: 0 }
+  ],
+  transfers: [],
+  sales: [],
+  warehouse: [],
+  users: []
+};
+
+// Attempt to init Supabase if keys are configured
+async function initSupabase() {
+  try {
+    if (SUPABASE_URL.includes('xyzcompany') || SUPABASE_KEY === 'your-anon-key-here') {
+      console.log('Demo mode: No Supabase keys. Using local storage.');
+      demoMode = true;
+      loadDemoData();
+      return;
+    }
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    demoMode = false;
+    await createTables();
+    setupRealtime();
+  } catch(e) {
+    console.log('Supabase init failed, using demo mode:', e);
+    demoMode = true;
+    loadDemoData();
+  }
+}
+
+function loadDemoData() {
+  const saved = localStorage.getItem('brandcrm_data');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      Object.assign(demoData, parsed);
+    } catch(e) {}
+  } else {
+    // Seed demo data
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    demoData.incomes = [
+      { id: 1, amount: 45000, date: today, source: 'Kaspi Shop', comment: 'Заказ #1234', account: 'kaspi', created_by: 'demo' },
+      { id: 2, amount: 32000, date: yesterday, source: 'Instagram', comment: '', account: 'cash', created_by: 'demo' },
+    ];
+    demoData.expenses = [
+      { id: 1, amount: 18000, date: today, category: 'Закупка товара', comment: 'Ткань хлопок', account: 'kaspi', created_by: 'demo' },
+      { id: 2, amount: 5500, date: yesterday, category: 'DTF-печать', comment: 'Принт лого', account: 'cash', created_by: 'demo' },
+      { id: 3, amount: 3200, date: today, category: 'Упаковка', comment: 'Пакеты, стикеры', account: 'kaspi', created_by: 'demo' },
+    ];
+    demoData.sales = [
+      { id: 1, name: 'Футболка оверсайз', qty: 2, price: 12000, cost: 5000, date: today, account: 'kaspi', created_by: 'demo' },
+      { id: 2, name: 'Худи', qty: 1, price: 25000, cost: 11000, date: yesterday, account: 'cash', created_by: 'demo' },
+    ];
+    demoData.warehouse = [
+      { id: 1, name: 'Футболка оверсайз', size: 'M', color: 'Чёрный', qty: 15, cost: 5000, price: 12000 },
+      { id: 2, name: 'Футболка оверсайз', size: 'L', color: 'Белый', qty: 8, cost: 5000, price: 12000 },
+      { id: 3, name: 'Худи', size: 'XL', color: 'Серый', qty: 5, cost: 11000, price: 25000 },
+    ];
+    demoData.accounts[0].balance = 45000 - 18000 - 3200;
+    demoData.accounts[1].balance = 32000 - 5500;
+    saveDemoData();
+  }
+}
+
+function saveDemoData() {
+  try {
+    localStorage.setItem('brandcrm_data', JSON.stringify(demoData));
+  } catch(e) {}
+}
+
+// ================================================================
+//  AUTH
+// ================================================================
+let demoLoggedIn = false;
+let demoUsers = [
+  { id: 'u1', email: 'admin@brand.kz', name: 'Администратор', role: 'admin', password: 'admin123' },
+  { id: 'u2', email: 'manager@brand.kz', name: 'Менеджер', role: 'manager', password: 'manager123' },
+  { id: 'u3', email: 'user@brand.kz', name: 'Просмотр', role: 'viewer', password: 'user123' },
+];
+
+function showRegister() {
+  document.getElementById('registerForm').style.display = 'block';
+}
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  if (!email || !pass) { showErr(errEl, 'Заполните все поля'); return; }
+
+  if (demoMode) {
+    // Demo login
+    let u = demoUsers.find(x => x.email === email && x.password === pass);
+    if (!u) { showErr(errEl, 'Неверный email или пароль. Попробуйте admin@brand.kz / admin123'); return; }
+    currentUser = u;
+    userProfile = u;
+    startApp();
+  } else {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+      if (error) { showErr(errEl, error.message); return; }
+      currentUser = data.user;
+      await loadProfile();
+      startApp();
+    } catch(e) {
+      showErr(errEl, 'Ошибка подключения');
+    }
+  }
+}
+
+async function doRegister() {
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const pass = document.getElementById('regPassword').value;
+  const errEl = document.getElementById('regError');
+  errEl.style.display = 'none';
+  if (!name || !email || !pass) { showErr(errEl, 'Заполните все поля'); return; }
+  if (pass.length < 6) { showErr(errEl, 'Пароль минимум 6 символов'); return; }
+
+  if (demoMode) {
+    const newU = { id: 'u'+Date.now(), email, name, role: 'manager', password: pass };
+    demoUsers.push(newU);
+    currentUser = newU;
+    userProfile = newU;
+    startApp();
+  } else {
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password: pass, options: { data: { name } } });
+      if (error) { showErr(errEl, error.message); return; }
+      currentUser = data.user;
+      await saveProfile(name);
+      startApp();
+    } catch(e) {
+      showErr(errEl, 'Ошибка при регистрации');
+    }
+  }
+}
+
+function showErr(el, msg) {
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function doLogout() {
+  if (!demoMode && supabase) await supabase.auth.signOut();
+  currentUser = null;
+  userProfile = null;
+  demoLoggedIn = false;
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('mainApp').style.display = 'none';
+  realtimeChannels.forEach(ch => { try { ch.unsubscribe(); } catch(e) {} });
+  realtimeChannels = [];
+}
+
+async function loadProfile() {
+  if (demoMode) { userProfile = currentUser; return; }
+  try {
+    const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
+    userProfile = data || { name: currentUser.email, role: 'manager' };
+  } catch(e) {
+    userProfile = { name: currentUser.email, role: 'manager' };
+  }
+}
+
+async function saveProfile(name) {
+  if (demoMode) return;
+  await supabase.from('profiles').upsert({ id: currentUser.id, name, role: 'manager', email: currentUser.email });
+}
+
+function startApp() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  updateUserUI();
+  loadAllData();
+  if (!demoMode) setupRealtime();
+  setInterval(autoRefresh, 30000);
+}
+
+function autoRefresh() {
+  if (currentPage === 'dashboard') loadDashboard();
+}
+
+function updateUserUI() {
+  const name = userProfile?.name || currentUser?.email || 'Пользователь';
+  const role = userProfile?.role || 'manager';
+  document.getElementById('userName').textContent = name;
+  document.getElementById('userRoleLabel').textContent = roleLabel(role);
+  document.getElementById('userAvatar').textContent = name.charAt(0).toUpperCase();
+  document.getElementById('settingsName').value = name;
+  document.getElementById('settingsEmail').value = currentUser?.email || '';
+  document.getElementById('settingsRole').value = role;
+}
+
+function roleLabel(r) {
+  return { admin: 'Администратор', manager: 'Менеджер', viewer: 'Просмотр' }[r] || r;
+}
+
+// ================================================================
+//  NAVIGATION
+// ================================================================
+let currentPage = 'dashboard';
+function navigate(page) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  event?.currentTarget?.classList?.add('active');
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('page-' + page);
+  if (el) el.classList.add('active');
+  currentPage = page;
+  const titles = { dashboard:'Дашборд', income:'Доходы', expenses:'Расходы', accounts:'Счета', sales:'Продажи', warehouse:'Склад', reports:'Отчёты', settings:'Настройки' };
+  document.getElementById('pageTitle').textContent = titles[page] || page;
+
+  // Activate correct nav item
+  document.querySelectorAll('.nav-item').forEach(el => {
+    if (el.getAttribute('onclick')?.includes(`'${page}'`)) el.classList.add('active');
+  });
+
+  switch(page) {
+    case 'dashboard': loadDashboard(); break;
+    case 'income': loadIncomes(); break;
+    case 'expenses': loadExpenses(); break;
+    case 'accounts': loadAccounts(); break;
+    case 'sales': loadSales(); break;
+    case 'warehouse': loadWarehouse(); break;
+    case 'reports': setReportPeriod(reportPeriod); break;
+  }
+  closeSidebar();
+}
+
+// ================================================================
+//  REALTIME
+// ================================================================
+function setupRealtime() {
+  if (!supabase) return;
+  const tables = ['incomes','expenses','transfers','sales','warehouse'];
+  tables.forEach(t => {
+    const ch = supabase.channel(`rt_${t}`).on('postgres_changes', { event: '*', schema: 'public', table: t }, () => {
+      refreshCurrentPage();
+    }).subscribe();
+    realtimeChannels.push(ch);
+  });
+}
+
+function refreshCurrentPage() {
+  navigate(currentPage);
+}
+
+// ================================================================
+//  DATA LOADING
+// ================================================================
+async function loadAllData() {
+  if (demoMode) return; // Demo data already loaded
+  try {
+    const [inc, exp, sal, wh] = await Promise.all([
+      supabase.from('incomes').select('*').order('date', { ascending: false }),
+      supabase.from('expenses').select('*').order('date', { ascending: false }),
+      supabase.from('sales').select('*').order('date', { ascending: false }),
+      supabase.from('warehouse').select('*'),
+    ]);
+    if (inc.data) demoData.incomes = inc.data;
+    if (exp.data) demoData.expenses = exp.data;
+    if (sal.data) demoData.sales = sal.data;
+    if (wh.data) demoData.warehouse = wh.data;
+    loadAccBalances();
+  } catch(e) {
+    console.error('Load error:', e);
+  }
+}
+
+// ================================================================
+//  DASHBOARD
+// ================================================================
+function loadDashboard() {
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const weekAgo = new Date(now - 7*86400000).toISOString().split('T')[0];
+  const monthAgo = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+
+  const inc = demoData.incomes;
+  const exp = demoData.expenses;
+  const sal = demoData.sales;
+  const wh = demoData.warehouse;
+
+  const sum = (arr, field, from, to) => arr.filter(x => x.date >= from && x.date <= to).reduce((s,x) => s + Number(x[field]||0), 0);
+  const profitCalc = (from, to) => sum(inc,'amount',from,to) - sum(exp,'amount',from,to);
+
+  const totalIncome = inc.reduce((s,x)=>s+Number(x.amount||0),0);
+  const totalExpense = exp.reduce((s,x)=>s+Number(x.amount||0),0);
+  const totalBalance = totalIncome - totalExpense;
+  const warehouseStock = wh.reduce((s,x)=>s+Number(x.qty||0),0);
+
+  document.getElementById('dashboardStats').innerHTML = `
+    <div class="stat-card ${totalBalance >= 0 ? 'green':'red'}">
+      <div class="stat-label">Общий баланс</div>
+      <div class="stat-value">${fmt(totalBalance)} ₸</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">Прибыль (день)</div>
+      <div class="stat-value">${fmt(profitCalc(todayStr,todayStr))} ₸</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">Прибыль (неделя)</div>
+      <div class="stat-value">${fmt(profitCalc(weekAgo,todayStr))} ₸</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">Прибыль (месяц)</div>
+      <div class="stat-value">${fmt(profitCalc(monthAgo,todayStr))} ₸</div>
+    </div>
+    <div class="stat-card accent">
+      <div class="stat-label">Доход (день)</div>
+      <div class="stat-value">${fmt(sum(inc,'amount',todayStr,todayStr))} ₸</div>
+    </div>
+    <div class="stat-card accent">
+      <div class="stat-label">Доход (неделя)</div>
+      <div class="stat-value">${fmt(sum(inc,'amount',weekAgo,todayStr))} ₸</div>
+    </div>
+    <div class="stat-card accent">
+      <div class="stat-label">Доход (месяц)</div>
+      <div class="stat-value">${fmt(sum(inc,'amount',monthAgo,todayStr))} ₸</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-label">Расход (день)</div>
+      <div class="stat-value">${fmt(sum(exp,'amount',todayStr,todayStr))} ₸</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-label">Расход (неделя)</div>
+      <div class="stat-value">${fmt(sum(exp,'amount',weekAgo,todayStr))} ₸</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-label">Расход (месяц)</div>
+      <div class="stat-value">${fmt(sum(exp,'amount',monthAgo,todayStr))} ₸</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="stat-label">Продаж (всего)</div>
+      <div class="stat-value">${sal.reduce((s,x)=>s+Number(x.qty||0),0)} шт</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Остаток на складе</div>
+      <div class="stat-value">${warehouseStock} шт</div>
+    </div>
+  `;
+  renderDashboardCharts();
+}
+
+function renderDashboardCharts() {
+  const days = 30;
+  const labels = [];
+  const incData = [];
+  const expData = [];
+  const profData = [];
+  for (let i = days-1; i >= 0; i--) {
+    const d = new Date(Date.now() - i*86400000);
+    const s = d.toISOString().split('T')[0];
+    labels.push(d.toLocaleDateString('ru', {day:'numeric',month:'short'}));
+    const dayInc = demoData.incomes.filter(x=>x.date===s).reduce((sum,x)=>sum+Number(x.amount||0),0);
+    const dayExp = demoData.expenses.filter(x=>x.date===s).reduce((sum,x)=>sum+Number(x.amount||0),0);
+    incData.push(dayInc);
+    expData.push(dayExp);
+    profData.push(dayInc - dayExp);
+  }
+  renderChart('chartIncomeExpense','bar',labels,[
+    {label:'Доходы',data:incData,backgroundColor:'rgba(96,165,250,0.7)'},
+    {label:'Расходы',data:expData,backgroundColor:'rgba(248,113,113,0.7)'}
+  ]);
+  renderChart('chartProfit','line',labels,[{label:'Прибыль',data:profData,borderColor:'#34d399',backgroundColor:'rgba(52,211,153,0.1)',fill:true,tension:0.4}]);
+
+  // Category chart
+  const cats = {};
+  demoData.expenses.forEach(x => { cats[x.category] = (cats[x.category]||0) + Number(x.amount||0); });
+  const catColors = ['rgba(124,106,247,0.7)','rgba(96,165,250,0.7)','rgba(52,211,153,0.7)','rgba(248,113,113,0.7)','rgba(251,191,36,0.7)','rgba(167,139,250,0.7)','rgba(52,211,153,0.5)','rgba(248,113,113,0.5)'];
+  renderChart('chartExpenseCat','doughnut',Object.keys(cats),[{data:Object.values(cats),backgroundColor:catColors}]);
+
+  // Sales count
+  const salesDays = labels.slice(-14);
+  const salesData = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(Date.now() - i*86400000).toISOString().split('T')[0];
+    salesData.push(demoData.sales.filter(x=>x.date===d).reduce((s,x)=>s+Number(x.qty||0),0));
+  }
+  renderChart('chartSalesCount','bar',labels.slice(-14),[{label:'Продажи',data:salesData,backgroundColor:'rgba(124,106,247,0.7)'}]);
+}
+
+function renderChart(id, type, labels, datasets) {
+  if (chartInstances[id]) { chartInstances[id].destroy(); }
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+  const tickColor = isDark ? '#9898a8' : '#606078';
+  chartInstances[id] = new Chart(canvas, {
+    type,
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { labels: { color: tickColor, font: { size: 11 }, boxWidth: 12 } } },
+      scales: type !== 'doughnut' ? {
+        x: { ticks: { color: tickColor, font: { size: 10 }, maxTicksLimit: 7 }, grid: { color: gridColor } },
+        y: { ticks: { color: tickColor, font: { size: 10 } }, grid: { color: gridColor } }
+      } : {}
+    }
+  });
+}
+
+// ================================================================
+//  INCOME
+// ================================================================
+function loadIncomes() {
+  const rows = [...demoData.incomes].sort((a,b) => b.date.localeCompare(a.date));
+  const tbody = document.getElementById('incomeTable');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--text2)">Нет записей. Добавьте первый доход.</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${fmtDate(r.date)}</td>
+      <td class="text-green fw-600">+${fmt(r.amount)} ₸</td>
+      <td><span class="badge badge-blue">${r.source||'—'}</span></td>
+      <td class="text-muted">${r.comment||'—'}</td>
+      <td class="text-muted">${r.created_by||'—'}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="deleteRecord('incomes',${r.id})">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+async function saveIncome() {
+  const amount = parseFloat(document.getElementById('incomeAmount').value);
+  const date = document.getElementById('incomeDate').value;
+  if (!amount || !date) { alert('Заполните сумму и дату'); return; }
+  const rec = {
+    id: Date.now(),
+    amount,
+    date,
+    source: document.getElementById('incomeSource').value,
+    account: document.getElementById('incomeAccount').value,
+    comment: document.getElementById('incomeComment').value,
+    created_by: userProfile?.name || 'demo'
+  };
+  if (demoMode) {
+    demoData.incomes.unshift(rec);
+    updateAccountBalance(rec.account, amount);
+    saveDemoData();
+  } else {
+    await supabase.from('incomes').insert([{ ...rec, id: undefined, user_id: currentUser.id }]);
+    await loadAllData();
+  }
+  closeModal('incomeModal');
+  clearForm(['incomeAmount','incomeComment']);
+  loadIncomes();
+  loadDashboard();
+}
+
+// ================================================================
+//  EXPENSES
+// ================================================================
+function loadExpenses() {
+  const rows = [...demoData.expenses].sort((a,b) => b.date.localeCompare(a.date));
+  const tbody = document.getElementById('expensesTable');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--text2)">Нет записей.</td></tr>'; return; }
+  const catColors = {'Закупка товара':'badge-blue','DTF-печать':'badge-accent','Маркетинг':'badge-amber','Упаковка':'badge-green','Бирки':'badge-blue','Этикетки':'badge-blue','Вес товара / доставка':'badge-amber','Прочие расходы':'badge-red'};
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${fmtDate(r.date)}</td>
+      <td class="text-red fw-600">-${fmt(r.amount)} ₸</td>
+      <td><span class="badge ${catColors[r.category]||'badge-blue'}">${r.category||'—'}</span></td>
+      <td class="text-muted">${r.comment||'—'}</td>
+      <td class="text-muted">${r.created_by||'—'}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="deleteRecord('expenses',${r.id})">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+async function saveExpense() {
+  const amount = parseFloat(document.getElementById('expenseAmount').value);
+  const date = document.getElementById('expenseDate').value;
+  if (!amount || !date) { alert('Заполните сумму и дату'); return; }
+  const rec = {
+    id: Date.now(),
+    amount,
+    date,
+    category: document.getElementById('expenseCategory').value,
+    account: document.getElementById('expenseAccount').value,
+    comment: document.getElementById('expenseComment').value,
+    created_by: userProfile?.name || 'demo'
+  };
+  if (demoMode) {
+    demoData.expenses.unshift(rec);
+    updateAccountBalance(rec.account, -amount);
+    saveDemoData();
+  } else {
+    await supabase.from('expenses').insert([{ ...rec, id: undefined, user_id: currentUser.id }]);
+    await loadAllData();
+  }
+  closeModal('expenseModal');
+  clearForm(['expenseAmount','expenseComment']);
+  loadExpenses();
+  loadDashboard();
+}
+
+// ================================================================
+//  ACCOUNTS
+// ================================================================
+function loadAccounts() {
+  const kaspi = demoData.accounts.find(a => a.id === 'kaspi') || { balance: 0 };
+  const cash = demoData.accounts.find(a => a.id === 'cash') || { balance: 0 };
+  document.getElementById('kaspiBalance').textContent = fmt(kaspi.balance) + ' ₸';
+  document.getElementById('cashBalance').textContent = fmt(cash.balance) + ' ₸';
+
+  const transfers = [...demoData.transfers].sort((a,b) => b.date.localeCompare(a.date));
+  const tbody = document.getElementById('accountHistory');
+  if (!transfers.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--text2)">Нет переводов.</td></tr>';
+  } else {
+    tbody.innerHTML = transfers.map(r => `
+      <tr>
+        <td>${fmtDate(r.date)}</td>
+        <td><span class="badge badge-accent">Перевод</span></td>
+        <td class="fw-600">${fmt(r.amount)} ₸</td>
+        <td>${r.from_account||'—'}</td>
+        <td>${r.to_account||'—'}</td>
+        <td class="text-muted">${r.comment||'—'}</td>
+      </tr>
+    `).join('');
+  }
+}
+
+async function saveTransfer() {
+  const amount = parseFloat(document.getElementById('transferAmount').value);
+  const date = document.getElementById('transferDate').value;
+  const from = document.getElementById('transferFrom').value;
+  const to = document.getElementById('transferTo').value;
+  if (!amount || !date) { alert('Заполните сумму и дату'); return; }
+  if (from === to) { alert('Нельзя перевести на тот же счёт'); return; }
+  const rec = { id: Date.now(), amount, date, from_account: from, to_account: to, comment: document.getElementById('transferComment').value };
+  if (demoMode) {
+    demoData.transfers.unshift(rec);
+    updateAccountBalance(from, -amount);
+    updateAccountBalance(to, amount);
+    saveDemoData();
+  }
+  closeModal('transferModal');
+  clearForm(['transferAmount','transferComment']);
+  loadAccounts();
+}
+
+function updateAccountBalance(account, delta) {
+  const acc = demoData.accounts.find(a => a.id === account);
+  if (acc) acc.balance += delta;
+}
+
+function loadAccBalances() {
+  // Recalculate from transactions
+  demoData.accounts.forEach(a => { a.balance = 0; });
+  demoData.incomes.forEach(x => updateAccountBalance(x.account, Number(x.amount||0)));
+  demoData.expenses.forEach(x => updateAccountBalance(x.account, -Number(x.amount||0)));
+  demoData.transfers.forEach(x => {
+    updateAccountBalance(x.from_account, -Number(x.amount||0));
+    updateAccountBalance(x.to_account, Number(x.amount||0));
+  });
+  demoData.sales.forEach(x => updateAccountBalance(x.account||'kaspi', Number(x.price||0)*Number(x.qty||0)));
+}
+
+// ================================================================
+//  SALES
+// ================================================================
+function loadSales() {
+  const rows = [...demoData.sales].sort((a,b) => b.date.localeCompare(a.date));
+  const tbody = document.getElementById('salesTable');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="9" style="padding:24px;text-align:center;color:var(--text2)">Нет продаж.</td></tr>'; return; }
+
+  let totalRev = 0, totalProfit = 0;
+  tbody.innerHTML = rows.map(r => {
+    const rev = Number(r.price||0) * Number(r.qty||0);
+    const cost = Number(r.cost||0) * Number(r.qty||0);
+    const profit = rev - cost;
+    const margin = rev > 0 ? Math.round((profit/rev)*100) : 0;
+    totalRev += rev; totalProfit += profit;
+    return `
+      <tr>
+        <td>${fmtDate(r.date)}</td>
+        <td class="fw-600">${r.name||'—'}</td>
+        <td>${r.qty||1}</td>
+        <td>${fmt(r.price)} ₸</td>
+        <td class="text-muted">${fmt(r.cost)} ₸</td>
+        <td class="text-green">${fmt(rev)} ₸</td>
+        <td class="${profit>=0?'text-green':'text-red'}">${fmt(profit)} ₸</td>
+        <td><span class="badge ${margin>=50?'badge-green':margin>=30?'badge-amber':'badge-red'}">${margin}%</span></td>
+        <td><button class="btn btn-sm btn-danger" onclick="deleteRecord('sales',${r.id})">✕</button></td>
+      </tr>
+    `;
+  }).join('');
+
+  document.getElementById('totalRevenue').textContent = fmt(totalRev) + ' ₸';
+  document.getElementById('totalNetProfit').textContent = fmt(totalProfit) + ' ₸';
+  const avgM = totalRev > 0 ? Math.round((totalProfit/totalRev)*100) : 0;
+  document.getElementById('avgMargin').textContent = avgM + '%';
+
+  // Fill warehouse dropdown
+  const sel = document.getElementById('saleWarehouseItem');
+  sel.innerHTML = '<option value="">— Выбрать со склада —</option>' +
+    demoData.warehouse.filter(w => w.qty > 0).map(w => `<option value="${w.id}">${w.name} (${w.size}, ${w.color}) — ${w.qty} шт</option>`).join('');
+}
+
+function fillSaleFromWarehouse(id) {
+  if (!id) return;
+  const item = demoData.warehouse.find(w => w.id == id);
+  if (!item) return;
+  document.getElementById('saleName').value = item.name;
+  document.getElementById('salePrice').value = item.price;
+  document.getElementById('saleCost').value = item.cost;
+  updateSaleCalc();
+}
+
+function updateSaleCalc() {
+  const qty = parseInt(document.getElementById('saleQty').value)||1;
+  const price = parseFloat(document.getElementById('salePrice').value)||0;
+  const cost = parseFloat(document.getElementById('saleCost').value)||0;
+  const rev = qty * price;
+  const profit = rev - qty * cost;
+  const margin = rev > 0 ? Math.round((profit/rev)*100) : 0;
+  document.getElementById('calcRevenue').textContent = fmt(rev) + ' ₸';
+  document.getElementById('calcProfit').textContent = fmt(profit) + ' ₸';
+  document.getElementById('calcMargin').textContent = margin + '%';
+}
+
+async function saveSale() {
+  const qty = parseInt(document.getElementById('saleQty').value)||1;
+  const price = parseFloat(document.getElementById('salePrice').value);
+  const cost = parseFloat(document.getElementById('saleCost').value)||0;
+  const name = document.getElementById('saleName').value.trim();
+  const date = document.getElementById('saleDate').value;
+  if (!name || !price || !date) { alert('Заполните название, цену и дату'); return; }
+
+  const whId = document.getElementById('saleWarehouseItem').value;
+  if (whId) {
+    const item = demoData.warehouse.find(w => w.id == whId);
+    if (item) {
+      if (item.qty < qty) { alert(`На складе только ${item.qty} шт.`); return; }
+      item.qty -= qty;
+    }
+  }
+
+  const rec = {
+    id: Date.now(),
+    name,
+    qty,
+    price,
+    cost,
+    date,
+    account: document.getElementById('saleAccount').value,
+    created_by: userProfile?.name || 'demo'
+  };
+  if (demoMode) {
+    demoData.sales.unshift(rec);
+    updateAccountBalance(rec.account, price * qty);
+    saveDemoData();
+  }
+  closeModal('saleModal');
+  clearForm(['saleQty','salePrice','saleCost','saleName']);
+  document.getElementById('saleWarehouseItem').value = '';
+  loadSales();
+  loadDashboard();
+}
+
+// ================================================================
+//  WAREHOUSE
+// ================================================================
+function loadWarehouse() {
+  const rows = demoData.warehouse;
+  const tbody = document.getElementById('warehouseTable');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--text2)">Склад пуст. Добавьте товары.</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td class="fw-600">${r.name||'—'}</td>
+      <td><span class="badge badge-blue">${r.size||'—'}</span></td>
+      <td>${r.color||'—'}</td>
+      <td><span class="${r.qty>0?'text-green fw-600':'text-red fw-600'}">${r.qty||0}</span></td>
+      <td class="text-muted">${fmt(r.cost)} ₸</td>
+      <td class="text-green">${fmt(r.price)} ₸</td>
+      <td>${fmt((r.qty||0) * (r.cost||0))} ₸</td>
+      <td>
+        <button class="btn btn-sm" onclick="editWarehouseQty(${r.id})" style="margin-right:4px;">✏️</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteRecord('warehouse',${r.id})">✕</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function editWarehouseQty(id) {
+  const item = demoData.warehouse.find(w => w.id == id);
+  if (!item) return;
+  const newQty = prompt(`Новое количество для "${item.name} (${item.size}, ${item.color})":`, item.qty);
+  if (newQty === null) return;
+  const n = parseInt(newQty);
+  if (isNaN(n) || n < 0) { alert('Введите корректное число'); return; }
+  item.qty = n;
+  saveDemoData();
+  loadWarehouse();
+  loadDashboard();
+}
+
+async function saveWarehouse() {
+  const name = document.getElementById('whName').value.trim();
+  const qty = parseInt(document.getElementById('whQty').value)||0;
+  const cost = parseFloat(document.getElementById('whCost').value)||0;
+  const price = parseFloat(document.getElementById('whPrice').value)||0;
+  if (!name) { alert('Введите название товара'); return; }
+  const rec = {
+    id: Date.now(),
+    name,
+    size: document.getElementById('whSize').value,
+    color: document.getElementById('whColor').value,
+    qty,
+    cost,
+    price
+  };
+  if (demoMode) {
+    demoData.warehouse.push(rec);
+    saveDemoData();
+  }
+  closeModal('warehouseModal');
+  clearForm(['whName','whColor','whQty','whCost','whPrice']);
+  loadWarehouse();
+  loadDashboard();
+}
+
+// ================================================================
+//  REPORTS
+// ================================================================
+function setReportPeriod(period, el) {
+  reportPeriod = period;
+  if (el) {
+    document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  const now = new Date();
+  let fromDate;
+  if (period === 'day') fromDate = now.toISOString().split('T')[0];
+  else if (period === 'week') fromDate = new Date(now - 7*86400000).toISOString().split('T')[0];
+  else fromDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const toDate = now.toISOString().split('T')[0];
+
+  const inc = demoData.incomes.filter(x => x.date >= fromDate && x.date <= toDate);
+  const exp = demoData.expenses.filter(x => x.date >= fromDate && x.date <= toDate);
+  const sal = demoData.sales.filter(x => x.date >= fromDate && x.date <= toDate);
+
+  const totalInc = inc.reduce((s,x)=>s+Number(x.amount||0),0);
+  const totalExp = exp.reduce((s,x)=>s+Number(x.amount||0),0);
+  const totalProfit = totalInc - totalExp;
+  const totalSales = sal.reduce((s,x)=>s+Number(x.qty||0),0);
+  const totalRev = sal.reduce((s,x)=>s+Number(x.price||0)*Number(x.qty||0),0);
+
+  document.getElementById('reportStats').innerHTML = `
+    <div class="stat-card accent">
+      <div class="stat-label">Доходы</div>
+      <div class="stat-value">${fmt(totalInc)} ₸</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-label">Расходы</div>
+      <div class="stat-value">${fmt(totalExp)} ₸</div>
+    </div>
+    <div class="stat-card ${totalProfit>=0?'green':'red'}">
+      <div class="stat-label">Прибыль</div>
+      <div class="stat-value">${fmt(totalProfit)} ₸</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="stat-label">Выручка от продаж</div>
+      <div class="stat-value">${fmt(totalRev)} ₸</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Продаж (штук)</div>
+      <div class="stat-value">${totalSales}</div>
+    </div>
+  `;
+
+  // Build chart data
+  const days = period === 'day' ? 1 : period === 'week' ? 7 : 30;
+  const labels = [], incArr = [], expArr = [], profArr = [];
+  for (let i = days-1; i >= 0; i--) {
+    const d = new Date(Date.now() - i*86400000);
+    const s = d.toISOString().split('T')[0];
+    if (s < fromDate) continue;
+    labels.push(d.toLocaleDateString('ru',{day:'numeric',month:'short'}));
+    const di = demoData.incomes.filter(x=>x.date===s).reduce((sum,x)=>sum+Number(x.amount||0),0);
+    const de = demoData.expenses.filter(x=>x.date===s).reduce((sum,x)=>sum+Number(x.amount||0),0);
+    incArr.push(di); expArr.push(de); profArr.push(di-de);
+  }
+  renderChart('chartReportIE','bar',labels,[
+    {label:'Доходы',data:incArr,backgroundColor:'rgba(96,165,250,0.7)'},
+    {label:'Расходы',data:expArr,backgroundColor:'rgba(248,113,113,0.7)'}
+  ]);
+  renderChart('chartReportProfit','line',labels,[{label:'Прибыль',data:profArr,borderColor:'#34d399',backgroundColor:'rgba(52,211,153,0.1)',fill:true,tension:0.4}]);
+}
+
+// ================================================================
+//  SETTINGS
+// ================================================================
+function saveSettings() {
+  const name = document.getElementById('settingsName').value.trim();
+  if (!name) { alert('Введите имя'); return; }
+  if (userProfile) {
+    userProfile.name = name;
+    userProfile.role = document.getElementById('settingsRole').value;
+  }
+  updateUserUI();
+  saveDemoData();
+  alert('Сохранено!');
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(demoData, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'brand-crm-backup-' + new Date().toISOString().split('T')[0] + '.json';
+  a.click();
+}
+
+// ================================================================
+//  HELPERS
+// ================================================================
+function deleteRecord(table, id) {
+  if (!confirm('Удалить запись?')) return;
+  if (demoMode) {
+    if (table === 'incomes') demoData.incomes = demoData.incomes.filter(x=>x.id!=id);
+    else if (table === 'expenses') demoData.expenses = demoData.expenses.filter(x=>x.id!=id);
+    else if (table === 'sales') demoData.sales = demoData.sales.filter(x=>x.id!=id);
+    else if (table === 'warehouse') demoData.warehouse = demoData.warehouse.filter(x=>x.id!=id);
+    loadAccBalances();
+    saveDemoData();
+  }
+  refreshCurrentPage();
+  loadDashboard();
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+  // Set today as default date
+  const dateFields = document.querySelectorAll(`#${id} input[type="date"]`);
+  dateFields.forEach(f => { if (!f.value) f.value = new Date().toISOString().split('T')[0]; });
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function clearForm(ids) {
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
+function fmt(n) {
+  const num = Math.round(Number(n)||0);
+  return num.toLocaleString('ru-RU');
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  try {
+    return new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+  } catch(e) { return d; }
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  document.getElementById('themeIcon').textContent = isDark ? '🌙' : '☀️';
+  setTimeout(() => { if (currentPage==='dashboard') renderDashboardCharts(); }, 100);
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('show');
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('show');
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+// ================================================================
+//  INIT
+// ================================================================
+window.addEventListener('DOMContentLoaded', async () => {
+  await initSupabase();
+  // Auto-login demo
+  document.getElementById('loginEmail').value = 'admin@brand.kz';
+  document.getElementById('loginPassword').value = 'admin123';
+});
+
+// Supabase DB schema (run once in Supabase SQL editor):
+/*
+create table profiles (id uuid primary key, name text, role text, email text);
+create table incomes (id bigserial primary key, amount numeric, date date, source text, account text, comment text, created_by text, user_id uuid, created_at timestamptz default now());
+create table expenses (id bigserial primary key, amount numeric, date date, category text, account text, comment text, created_by text, user_id uuid, created_at timestamptz default now());
+create table transfers (id bigserial primary key, amount numeric, date date, from_account text, to_account text, comment text, user_id uuid, created_at timestamptz default now());
+create table sales (id bigserial primary key, name text, qty int, price numeric, cost numeric, date date, account text, created_by text, user_id uuid, created_at timestamptz default now());
+create table warehouse (id bigserial primary key, name text, size text, color text, qty int, cost numeric, price numeric, created_at timestamptz default now());
+alter table incomes enable row level security;
+alter table expenses enable row level security;
+alter table transfers enable row level security;
+alter table sales enable row level security;
+alter table warehouse enable row level security;
+create policy "auth users" on incomes for all using (auth.role() = 'authenticated');
+create policy "auth users" on expenses for all using (auth.role() = 'authenticated');
+create policy "auth users" on transfers for all using (auth.role() = 'authenticated');
+create policy "auth users" on sales for all using (auth.role() = 'authenticated');
+create policy "auth users" on warehouse for all using (auth.role() = 'authenticated');
+*/
+</script>
+</body>
+</html>
